@@ -1,0 +1,37 @@
+name: Build Strix Windows
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Extract desktop source
+        shell: pwsh
+        run: Expand-Archive strix-desktop-source-0.3.1.zip -DestinationPath desktop
+      - name: Install locked build dependencies
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+      - name: Verify desktop controls
+        working-directory: desktop
+        run: node --test tests/*.cjs
+      - name: Package Windows installer
+        working-directory: desktop
+        run: npm run build:windows
+      - name: Publish test installer and checksum
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $file = 'desktop/release/Strix-Setup-0.3.1-Windows-x64.exe'
+          if (!(Test-Path $file)) { throw 'Installer missing' }
+          $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+          "$hash  Strix-Setup-0.3.1-Windows-x64.exe" | Set-Content -Encoding ascii desktop/release/SHA256SUMS.txt
+          gh release create v0.3.1 $file desktop/release/SHA256SUMS.txt --prerelease --target $env:GITHUB_SHA --title 'Strix Desktop 0.3.1 - Windows (teste)' --notes-file desktop/RELEASE-NOTES.md
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
