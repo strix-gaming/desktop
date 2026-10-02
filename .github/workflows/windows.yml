@@ -14,14 +14,14 @@ jobs:
           node-version: '24'
       - name: Extract desktop source
         shell: pwsh
-        run: Expand-Archive strix-desktop-source-0.3.14.zip -DestinationPath desktop
+        run: Expand-Archive strix-desktop-source-0.3.15.zip -DestinationPath desktop
       - name: Verify source version
         working-directory: desktop
         shell: pwsh
         run: |
           $buildVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $appVersion = (Get-Content app/package.json -Raw | ConvertFrom-Json).version
-          if ($buildVersion -ne '0.3.14' -or $appVersion -ne '0.3.14') { throw 'Desktop source version mismatch' }
+          if ($buildVersion -ne '0.3.15' -or $appVersion -ne '0.3.15') { throw 'Desktop source version mismatch' }
       - name: Install locked build dependencies
         working-directory: desktop
         run: npm ci --no-audit --no-fund
@@ -58,9 +58,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $file = 'desktop/release/Strix-Setup-0.3.14-Windows-x64.exe'
+          $file = 'desktop/release/Strix-Setup-0.3.15-Windows-x64.exe'
           if (!(Test-Path $file)) { throw 'Installer missing' }
           $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
-          "$hash  Strix-Setup-0.3.14-Windows-x64.exe" | Set-Content -Encoding ascii desktop/release/SHA256SUMS.txt
-          gh release create v0.3.14 $file desktop/release/SHA256SUMS.txt desktop/release/latest.yml desktop/release/*.blockmap --prerelease --target $env:GITHUB_SHA --title 'Strix Desktop 0.3.14 - Windows (teste)' --notes-file desktop/RELEASE-NOTES.md
+          "$hash  Strix-Setup-0.3.15-Windows-x64.exe" | Set-Content -Encoding ascii desktop/release/SHA256SUMS.txt
+          gh release create v0.3.15 $file desktop/release/SHA256SUMS.txt desktop/release/latest.yml desktop/release/*.blockmap --prerelease --target $env:GITHUB_SHA --title 'Strix Desktop 0.3.15 - Windows (teste)' --notes-file desktop/RELEASE-NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
+
