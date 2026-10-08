@@ -14,14 +14,14 @@ jobs:
           node-version: '24'
       - name: Extract desktop source
         shell: pwsh
-        run: Expand-Archive strix-desktop-source-0.3.19.zip -DestinationPath desktop
+        run: Expand-Archive strix-desktop-source-0.3.20.zip -DestinationPath desktop
       - name: Verify source version
         working-directory: desktop
         shell: pwsh
         run: |
           $buildVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $appVersion = (Get-Content app/package.json -Raw | ConvertFrom-Json).version
-          if ($buildVersion -ne '0.3.19' -or $appVersion -ne '0.3.19') { throw 'Desktop source version mismatch' }
+          if ($buildVersion -ne '0.3.20' -or $appVersion -ne '0.3.20') { throw 'Desktop source version mismatch' }
       - name: Install locked build dependencies
         working-directory: desktop
         run: npm ci --no-audit --no-fund
@@ -53,17 +53,24 @@ jobs:
       - name: Verify early launch before network response
         working-directory: desktop
         run: npx electron integration/electron-window-launch.cjs
+      - name: Verify native Windows shortcut migration
+        working-directory: desktop
+        run: npx electron integration/electron-windows-identity.cjs
       - name: Package Windows installer
         working-directory: desktop
         run: npm run build:windows -- --publish never
+      - name: Verify S icon embedded in application and installer
+        working-directory: desktop
+        run: node integration/verify-windows-icons.cjs
       - name: Publish test installer and checksum
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $file = 'desktop/release/Strix-Setup-0.3.19-Windows-x64.exe'
+          $file = 'desktop/release/Strix-Setup-0.3.20-Windows-x64.exe'
           if (!(Test-Path $file)) { throw 'Installer missing' }
           $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
-          "$hash  Strix-Setup-0.3.19-Windows-x64.exe" | Set-Content -Encoding ascii desktop/release/SHA256SUMS.txt
-          gh release create v0.3.19 $file desktop/release/SHA256SUMS.txt desktop/release/latest.yml desktop/release/*.blockmap --prerelease --target $env:GITHUB_SHA --title 'Strix Desktop 0.3.19 - Windows (teste)' --notes-file desktop/RELEASE-NOTES.md
+          "$hash  Strix-Setup-0.3.20-Windows-x64.exe" | Set-Content -Encoding ascii desktop/release/SHA256SUMS.txt
+          gh release create v0.3.20 $file desktop/release/SHA256SUMS.txt desktop/release/latest.yml desktop/release/*.blockmap --prerelease --target $env:GITHUB_SHA --title 'Strix Desktop 0.3.20 - Windows (teste)' --notes-file desktop/RELEASE-NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
+
