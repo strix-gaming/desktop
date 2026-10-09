@@ -1,0 +1,42 @@
+name: Validate Strix 0.3.22 game audio
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  game-audio:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify released production source is unchanged
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash strix-desktop-source-0.3.22.zip -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne '5f52ea7b1dca088a8647e5a22a43c5e512c3624cecc6a754bd877bb975b93804') { throw 'Released source differs' }
+          Expand-Archive strix-desktop-source-0.3.22.zip -DestinationPath released
+          Expand-Archive strix-desktop-validation-0.3.22.zip -DestinationPath desktop
+          $released = Get-ChildItem released/app -File -Recurse
+          $validated = Get-ChildItem desktop/app -File -Recurse
+          if ($released.Count -ne $validated.Count) { throw 'Production file count differs' }
+          foreach ($file in $released) {
+            $relative = [System.IO.Path]::GetRelativePath((Resolve-Path released/app), $file.FullName)
+            $target = Join-Path desktop/app $relative
+            if (!(Test-Path $target) -or (Get-FileHash $target).Hash -ne (Get-FileHash $file.FullName).Hash) { throw "Production file differs: $relative" }
+          }
+      - name: Install locked Electron runtime
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+      - name: Verify complete audio lifecycle and completion marker
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          npx electron integration/electron-game-audio.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Audio integration failed' }
+          if (!(Test-Path game-audio-validation.json)) { throw 'Electron exited before all assertions completed' }
+          $result = Get-Content game-audio-validation.json -Raw | ConvertFrom-Json
+          if (!$result.passed -or !$result.shippedExtension -or !$result.detachedIsolation -or !$result.callUntouched -or !$result.muting) { throw 'Audio validation is incomplete' }
+          Get-Content game-audio-validation.json
